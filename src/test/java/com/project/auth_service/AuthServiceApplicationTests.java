@@ -62,9 +62,9 @@ class AuthServiceApplicationTests {
     private static final String USER_AGENT = "JUnit";
     private static final String REFRESH_ATTEMPT_HEADER = "X-Refresh-Attempt-Id";
     private static final String TEST_JWT_KEY_ID = "auth-service-test-key";
-    private static final String DEFAULT_CLIENT_ID = "budget-manager-web";
-    private static final String DEFAULT_AUDIENCE = "budget-manager";
-    private static final String AUTH_SERVICE_AUDIENCE = "auth-service-api-test";
+    private static final String DEFAULT_CLIENT_ID = "auth-service";
+    private static final String DEFAULT_AUDIENCE = "auth-service";
+    private static final String AUTH_SERVICE_AUDIENCE = "auth-service";
     private static final String SUPER_ADMIN_USERNAME = "bootstrap_super_admin";
     private static final String SUPER_ADMIN_PASSWORD = "Password123!";
     private static final KeyPair TEST_JWT_KEY_PAIR = generateTestKeyPair();
@@ -436,7 +436,7 @@ class AuthServiceApplicationTests {
         CsrfContext csrf = getCsrfContext();
         MvcResult registerResult = registerUser(csrf, "wrong_audience_" + UUID.randomUUID().toString().replace("-", ""));
         String validAccessToken = readAccessToken(registerResult);
-        String wrongAudienceToken = issueAccessToken(validAccessToken, "auth-service-test", List.of(DEFAULT_AUDIENCE));
+        String wrongAudienceToken = issueAccessToken(validAccessToken, "auth-service", List.of("other-service"));
 
         mockMvc.perform(get("/api/v1/auth/sessions")
                         .header(HttpHeaders.AUTHORIZATION, "Bearer " + wrongAudienceToken))
@@ -1487,8 +1487,16 @@ class AuthServiceApplicationTests {
 
     private void assertAudienceContains(JsonNode tokenPayload, String... expectedAudiences) {
         List<String> audiences = new java.util.ArrayList<>();
-        tokenPayload.get("aud").forEach(audience -> audiences.add(audience.asText()));
-        org.junit.jupiter.api.Assertions.assertEquals(List.of(expectedAudiences), audiences);
+        JsonNode audienceClaim = tokenPayload.get("aud");
+        if (audienceClaim.isArray()) {
+            audienceClaim.forEach(audience -> audiences.add(audience.asText()));
+        } else {
+            audiences.add(audienceClaim.asText());
+        }
+        List<String> distinctExpectedAudiences = java.util.Arrays.stream(expectedAudiences)
+                .distinct()
+                .toList();
+        org.junit.jupiter.api.Assertions.assertEquals(distinctExpectedAudiences, audiences);
     }
 
     private static KeyPair generateTestKeyPair() {

@@ -59,7 +59,7 @@ management:
 
 app:
   auth-clients:
-    default-client-id: ${APP_AUTH_CLIENTS_DEFAULT_CLIENT_ID:budget-manager-web}
+    default-client-id: ${APP_AUTH_CLIENTS_DEFAULT_CLIENT_ID:auth-service}
 
   events:
     kafka:

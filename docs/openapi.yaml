@@ -1034,7 +1034,7 @@ components:
           minLength: 1
         clientId:
           type: string
-          description: Опциональный id auth client. По умолчанию используется `budget-manager-web`.
+          description: Опциональный id auth client. По умолчанию используется `auth-service`.
 
     RegisterRequest:
       type: object
@@ -1054,7 +1054,7 @@ components:
           maxLength: 128
         clientId:
           type: string
-          description: Опциональный id auth client. По умолчанию используется `budget-manager-web`.
+          description: Опциональный id auth client. По умолчанию используется `auth-service`.
 
     TokenResponse:
       type: object
@@ -1294,12 +1294,12 @@ components:
           type: string
           maxLength: 128
           minLength: 1
-          example: budget-manager-web
+          example: auth-service
         name:
           type: string
           maxLength: 128
           minLength: 1
-          example: Budget Manager Web
+          example: Auth Service UI
         enabled:
           type: boolean
           default: true
@@ -1320,7 +1320,7 @@ components:
           type: string
           maxLength: 128
           minLength: 1
-          example: budget-manager
+          example: auth-service
         allowedOrigins:
           type: array
           maxItems: 50
@@ -1345,7 +1345,7 @@ components:
           type: string
           maxLength: 128
           minLength: 1
-          example: Budget Manager Web
+          example: Auth Service UI
         accessTokenTtlSeconds:
           type: integer
           format: int64
@@ -1363,7 +1363,7 @@ components:
           type: string
           maxLength: 128
           minLength: 1
-          example: budget-manager
+          example: auth-service
         allowedOrigins:
           type: array
           maxItems: 50

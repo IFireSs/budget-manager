@@ -54,13 +54,13 @@ Auth-service выпускает access token с такими claims:
 {
   "iss": "auth-service",
   "sub": "username",
-  "aud": ["auth-service", "budget-manager"],
+  "aud": ["auth-service"],
   "iat": 1710000000,
   "exp": 1710000600,
   "uid": "7bfae473-a56d-4a64-8f3f-2159e73e4f3a",
   "roles": ["USER"],
   "sid": "0f5df3f8-21d9-42f9-8d55-1df1dc030301",
-  "client_id": "budget-manager-web"
+  "client_id": "auth-service"
 }
 ```
 
@@ -68,7 +68,7 @@ Auth-service выпускает access token с такими claims:
 
 - `iss`: issuer токена. Resource-сервисы обязаны его валидировать.
 - `sub`: username аутентифицированного пользователя.
-- `aud`: список audience токена. Он содержит audience auth-service из `APP_SECURITY_ACCESS_TOKEN_AUDIENCE` и audience resource-сервиса из `auth_clients.token_audience`.
+- `aud`: список audience токена. Он содержит audience auth-service из `APP_SECURITY_ACCESS_TOKEN_AUDIENCE` и audience client application из `auth_clients.token_audience`. Для стандартного frontend-клиента `auth-service` оба значения совпадают, поэтому в токене остается один `aud`.
 - `uid`: стабильный UUID пользователя в auth-service. Resource-сервисы должны использовать его как внешний user id.
 - `roles`: роли пользователя без префикса `ROLE_`. Spring resource server должен мапить их в authorities с префиксом `ROLE_`.
 - `sid`: id login-сессии в auth-service. Resource-сервисы не должны использовать его как id пользователя.
