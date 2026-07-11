@@ -81,6 +81,7 @@ class RedisRateLimitBackendTests {
                 ),
                 new RateLimitProperties.Limit(10, Duration.ofMinutes(10)),
                 new RateLimitProperties.Limit(30, Duration.ofMinutes(1)),
+                new RateLimitProperties.Limit(5, Duration.ofMinutes(10)),
                 new RateLimitProperties.Limit(60, Duration.ofMinutes(1)),
                 RateLimitProperties.Backend.REDIS,
                 "test:rate-limit:" + UUID.randomUUID(),

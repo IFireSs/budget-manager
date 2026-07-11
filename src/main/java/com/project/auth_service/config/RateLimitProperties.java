@@ -18,6 +18,7 @@ public record RateLimitProperties(
         @Valid @NotNull Login login,
         @Valid @NotNull Limit register,
         @Valid @NotNull Limit refresh,
+        @Valid @NotNull Limit passwordChange,
         @Valid @NotNull Limit admin,
         @DefaultValue("IN_MEMORY") @NotNull Backend backend,
         @DefaultValue("auth-service:rate-limit") @NotBlank String redisKeyPrefix,

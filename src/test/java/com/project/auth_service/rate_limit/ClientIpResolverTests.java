@@ -76,6 +76,7 @@ class ClientIpResolverTests {
                 limit,
                 limit,
                 limit,
+                limit,
                 RateLimitProperties.Backend.IN_MEMORY,
                 "test:rate-limit",
                 trustedProxies

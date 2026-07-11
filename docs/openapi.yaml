@@ -323,6 +323,38 @@ paths:
         '401':
           description: Отсутствует или невалиден bearer token
 
+  /api/v1/auth/password/change:
+    post:
+      tags: [Аутентификация]
+      summary: Сменить пароль текущего пользователя
+      description: |
+        Меняет пароль аутентифицированного пользователя после проверки текущего пароля.
+        Пользователь определяется только по bearer token.
+        После успешной смены пароля backend отзывает остальные refresh-сессии пользователя,
+        текущую сессию оставляет активной.
+      operationId: changePassword
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ChangePasswordRequest'
+      responses:
+        '204':
+          description: Пароль изменен
+        '400':
+          description: Текущий пароль неверен, новый пароль совпадает с текущим или не проходит валидацию
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '401':
+          description: Отсутствует или невалиден bearer token
+        '429':
+          description: Превышен rate limit смены пароля
+
   /api/v1/auth/sessions:
     get:
       tags: [Аутентификация]
@@ -1055,6 +1087,20 @@ components:
         clientId:
           type: string
           description: Опциональный id auth client. По умолчанию используется `auth-service`.
+
+    ChangePasswordRequest:
+      type: object
+      additionalProperties: false
+      required: [currentPassword, newPassword]
+      properties:
+        currentPassword:
+          type: string
+          minLength: 1
+        newPassword:
+          type: string
+          minLength: 8
+          maxLength: 72
+          description: Новый пароль должен отличаться от текущего.
 
     TokenResponse:
       type: object

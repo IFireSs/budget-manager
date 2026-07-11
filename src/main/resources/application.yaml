@@ -97,6 +97,9 @@ app:
     refresh:
       capacity: ${APP_RATE_LIMIT_REFRESH_CAPACITY:30}
       refill-period: ${APP_RATE_LIMIT_REFRESH_REFILL_PERIOD:PT1M}
+    password-change:
+      capacity: ${APP_RATE_LIMIT_PASSWORD_CHANGE_CAPACITY:5}
+      refill-period: ${APP_RATE_LIMIT_PASSWORD_CHANGE_REFILL_PERIOD:PT10M}
     admin:
       capacity: ${APP_RATE_LIMIT_ADMIN_CAPACITY:60}
       refill-period: ${APP_RATE_LIMIT_ADMIN_REFILL_PERIOD:PT1M}

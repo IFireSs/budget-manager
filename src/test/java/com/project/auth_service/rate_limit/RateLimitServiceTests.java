@@ -56,6 +56,7 @@ class RateLimitServiceTests {
                 limit(100),
                 limit(100),
                 limit(100),
+                limit(100),
                 RateLimitProperties.Backend.IN_MEMORY,
                 "test:rate-limit",
                 List.of()

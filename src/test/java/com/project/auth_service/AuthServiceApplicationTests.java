@@ -6,8 +6,10 @@ import com.project.auth_service.api.dto.RegisterRequest;
 import com.project.auth_service.entity.OutboxEvent;
 import com.project.auth_service.entity.RefreshToken;
 import com.project.auth_service.entity.UserBan;
+import com.project.auth_service.enums.AuditEventType;
 import com.project.auth_service.enums.OutboxEventStatus;
 import com.project.auth_service.enums.UserBanEndType;
+import com.project.auth_service.repository.AuditEventRepository;
 import com.project.auth_service.repository.RefreshTokenRepository;
 import com.project.auth_service.repository.OutboxEventRepository;
 import com.project.auth_service.repository.UserBanRepository;
@@ -114,6 +116,9 @@ class AuthServiceApplicationTests {
 
     @Autowired
     private RefreshTokenRepository refreshTokenRepository;
+
+    @Autowired
+    private AuditEventRepository auditEventRepository;
 
     @Autowired
     private OutboxEventRepository outboxEventRepository;
@@ -416,6 +421,170 @@ class AuthServiceApplicationTests {
         mockMvc.perform(get("/api/v1/auth/sessions")
                         .header(HttpHeaders.AUTHORIZATION, "Bearer " + accessToken))
                 .andExpect(status().isUnauthorized());
+    }
+
+    @Test
+    void authenticatedUserCanChangePassword() throws Exception {
+        CsrfContext csrf = getCsrfContext();
+        String username = "change_password_" + UUID.randomUUID().toString().replace("-", "");
+        MvcResult registerResult = registerUser(csrf, username);
+        String oldSessionAccessToken = readAccessToken(registerResult);
+        Cookie oldSessionRefreshCookie = registerResult.getResponse().getCookie("refresh_token");
+        Cookie oldSessionIdCookie = registerResult.getResponse().getCookie("session_id");
+        MvcResult currentSessionLogin = loginUser(csrf, username, "Password123!");
+        String accessToken = readAccessToken(currentSessionLogin);
+        UUID userId = readUuidClaim(accessToken, "uid");
+        String currentSessionId = readStringClaim(accessToken, "sid");
+        String newPassword = "NewPassword123!";
+
+        mockMvc.perform(post("/api/v1/auth/password/change")
+                        .header(HttpHeaders.AUTHORIZATION, "Bearer " + accessToken)
+                        .header(HttpHeaders.USER_AGENT, USER_AGENT)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {
+                                  "currentPassword": "Password123!",
+                                  "newPassword": "%s"
+                                }
+                                """.formatted(newPassword)))
+                .andExpect(status().isNoContent());
+
+        mockMvc.perform(get("/api/v1/auth/sessions")
+                        .header(HttpHeaders.AUTHORIZATION, "Bearer " + accessToken))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$[0].sessionId").value(currentSessionId))
+                .andExpect(jsonPath("$[1]").doesNotExist());
+
+        mockMvc.perform(get("/api/v1/auth/sessions")
+                        .header(HttpHeaders.AUTHORIZATION, "Bearer " + oldSessionAccessToken))
+                .andExpect(status().isUnauthorized());
+
+        mockMvc.perform(post("/api/v1/auth/refresh")
+                        .cookie(csrf.cookie(), oldSessionRefreshCookie, oldSessionIdCookie)
+                        .header("X-XSRF-TOKEN", csrf.token())
+                        .header(HttpHeaders.USER_AGENT, USER_AGENT))
+                .andExpect(status().isUnauthorized());
+
+        mockMvc.perform(post("/api/v1/auth/login")
+                        .cookie(csrf.cookie())
+                        .header("X-XSRF-TOKEN", csrf.token())
+                        .header(HttpHeaders.USER_AGENT, USER_AGENT)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {
+                                  "username": "%s",
+                                  "password": "Password123!"
+                                }
+                                """.formatted(username))
+                        .with(remoteAddr(nextLoginIp())))
+                .andExpect(status().isUnauthorized())
+                .andExpect(jsonPath("$.code").value("INVALID_CREDENTIALS"));
+
+        mockMvc.perform(post("/api/v1/auth/login")
+                        .cookie(csrf.cookie())
+                        .header("X-XSRF-TOKEN", csrf.token())
+                        .header(HttpHeaders.USER_AGENT, USER_AGENT)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {
+                                  "username": "%s",
+                                  "password": "%s"
+                                }
+                                """.formatted(username, newPassword))
+                        .with(remoteAddr(nextLoginIp())))
+                .andExpect(status().isOk());
+
+        var auditEvent = auditEventRepository.findAll().stream()
+                .filter(event -> event.getEventType() == AuditEventType.PASSWORD_CHANGED)
+                .filter(event -> userId.equals(event.getTargetUserId()))
+                .findFirst()
+                .orElseThrow();
+        org.junit.jupiter.api.Assertions.assertEquals(userId, auditEvent.getActorUserId());
+        org.junit.jupiter.api.Assertions.assertEquals(username, auditEvent.getUsername());
+        org.junit.jupiter.api.Assertions.assertTrue(objectMapper.readTree(auditEvent.getDetailsJson()).get("selfService").asBoolean());
+        org.junit.jupiter.api.Assertions.assertEquals(1, objectMapper.readTree(auditEvent.getDetailsJson()).get("otherSessionsRevoked").asInt());
+    }
+
+    @Test
+    void changePasswordRejectsInvalidCurrentPassword() throws Exception {
+        CsrfContext csrf = getCsrfContext();
+        String username = "change_password_invalid_" + UUID.randomUUID().toString().replace("-", "");
+        MvcResult registerResult = registerUser(csrf, username);
+        String accessToken = readAccessToken(registerResult);
+        UUID userId = readUuidClaim(accessToken, "uid");
+
+        mockMvc.perform(post("/api/v1/auth/password/change")
+                        .header(HttpHeaders.AUTHORIZATION, "Bearer " + accessToken)
+                        .header(HttpHeaders.USER_AGENT, USER_AGENT)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {
+                                  "currentPassword": "WrongPassword123!",
+                                  "newPassword": "NewPassword123!"
+                                }
+                                """))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.code").value("INVALID_CURRENT_PASSWORD"))
+                .andExpect(jsonPath("$.message").value("Current password is invalid"));
+
+        mockMvc.perform(post("/api/v1/auth/login")
+                        .cookie(csrf.cookie())
+                        .header("X-XSRF-TOKEN", csrf.token())
+                        .header(HttpHeaders.USER_AGENT, USER_AGENT)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {
+                                  "username": "%s",
+                                  "password": "Password123!"
+                                }
+                                """.formatted(username))
+                        .with(remoteAddr(nextLoginIp())))
+                .andExpect(status().isOk());
+
+        var auditEvent = auditEventRepository.findAll().stream()
+                .filter(event -> event.getEventType() == AuditEventType.PASSWORD_CHANGE_FAILED)
+                .filter(event -> userId.equals(event.getTargetUserId()))
+                .findFirst()
+                .orElseThrow();
+        JsonNode details = objectMapper.readTree(auditEvent.getDetailsJson());
+        org.junit.jupiter.api.Assertions.assertEquals(userId, auditEvent.getActorUserId());
+        org.junit.jupiter.api.Assertions.assertEquals(username, auditEvent.getUsername());
+        org.junit.jupiter.api.Assertions.assertEquals("INVALID_CURRENT_PASSWORD", details.get("reason").asText());
+        org.junit.jupiter.api.Assertions.assertTrue(details.get("selfService").asBoolean());
+    }
+
+    @Test
+    void changePasswordRejectsSamePassword() throws Exception {
+        CsrfContext csrf = getCsrfContext();
+        String username = "change_password_same_" + UUID.randomUUID().toString().replace("-", "");
+        MvcResult registerResult = registerUser(csrf, username);
+        String accessToken = readAccessToken(registerResult);
+        UUID userId = readUuidClaim(accessToken, "uid");
+
+        mockMvc.perform(post("/api/v1/auth/password/change")
+                        .header(HttpHeaders.AUTHORIZATION, "Bearer " + accessToken)
+                        .header(HttpHeaders.USER_AGENT, USER_AGENT)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {
+                                  "currentPassword": "Password123!",
+                                  "newPassword": "Password123!"
+                                }
+                                """))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.code").value("PASSWORD_REUSE_NOT_ALLOWED"))
+                .andExpect(jsonPath("$.message").value("New password must be different from current password"));
+
+        var auditEvent = auditEventRepository.findAll().stream()
+                .filter(event -> event.getEventType() == AuditEventType.PASSWORD_CHANGE_FAILED)
+                .filter(event -> userId.equals(event.getTargetUserId()))
+                .findFirst()
+                .orElseThrow();
+        JsonNode details = objectMapper.readTree(auditEvent.getDetailsJson());
+        org.junit.jupiter.api.Assertions.assertEquals(userId, auditEvent.getActorUserId());
+        org.junit.jupiter.api.Assertions.assertEquals(username, auditEvent.getUsername());
+        org.junit.jupiter.api.Assertions.assertEquals("PASSWORD_REUSE_NOT_ALLOWED", details.get("reason").asText());
+        org.junit.jupiter.api.Assertions.assertTrue(details.get("selfService").asBoolean());
     }
 
     @Test

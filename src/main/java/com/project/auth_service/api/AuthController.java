@@ -1,5 +1,6 @@
 package com.project.auth_service.api;
 
+import com.project.auth_service.api.dto.ChangePasswordRequest;
 import com.project.auth_service.api.dto.LoginRequest;
 import com.project.auth_service.api.dto.RegisterRequest;
 import com.project.auth_service.api.dto.SessionResponse;
@@ -128,6 +129,22 @@ public class AuthController {
             return ResponseEntity.noContent().build();
         }
         return noContentWithClearedAuthCookies();
+    }
+
+    @PostMapping("/password/change")
+    public ResponseEntity<Void> changePassword(@AuthenticationPrincipal Jwt jwt,
+                                               @Valid @RequestBody ChangePasswordRequest request,
+                                               HttpServletRequest servletRequest,
+                                               @RequestHeader(value = "User-Agent", required = false) String userAgent) {
+        authService.changePassword(AuthService.ChangePasswordCommand.builder()
+                .userId(JwtClaims.userId(jwt))
+                .currentPassword(request.currentPassword())
+                .newPassword(request.newPassword())
+                .sessionId(JwtClaims.sessionId(jwt))
+                .ip(clientIpResolver.resolve(servletRequest))
+                .userAgent(userAgent)
+                .build());
+        return ResponseEntity.noContent().build();
     }
 
     @GetMapping("/sessions")

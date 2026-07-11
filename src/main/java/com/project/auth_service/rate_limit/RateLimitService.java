@@ -33,6 +33,7 @@ public class RateLimitService {
             case LOGIN_ACCOUNT_IP -> properties.login().accountIp();
             case REGISTER -> properties.register();
             case REFRESH -> properties.refresh();
+            case PASSWORD_CHANGE -> properties.passwordChange();
             case ADMIN -> properties.admin();
         };
     }
@@ -43,6 +44,7 @@ public class RateLimitService {
         LOGIN_ACCOUNT_IP("login:account-ip"),
         REGISTER("register"),
         REFRESH("refresh"),
+        PASSWORD_CHANGE("password-change"),
         ADMIN("admin");
 
         private final String keyPrefix;

@@ -90,6 +90,9 @@ public class RateLimitFilter extends OncePerRequestFilter {
         if (HttpMethod.POST.matches(method) && "/api/v1/auth/refresh".equals(path)) {
             return new RateLimitTarget(RateLimitService.Scope.REFRESH, ip);
         }
+        if (HttpMethod.POST.matches(method) && "/api/v1/auth/password/change".equals(path)) {
+            return new RateLimitTarget(RateLimitService.Scope.PASSWORD_CHANGE, ip);
+        }
         if (path.startsWith("/api/v1/admin/")) {
             return new RateLimitTarget(RateLimitService.Scope.ADMIN, ip);
         }

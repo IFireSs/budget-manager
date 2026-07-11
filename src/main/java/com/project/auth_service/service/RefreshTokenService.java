@@ -242,6 +242,20 @@ public class RefreshTokenService {
         }
     }
 
+    @Transactional
+    public int revokeOtherActiveSessionsByUserId(UUID userId, String currentSessionId, Instant now) {
+        if (currentSessionId == null || currentSessionId.isBlank()) {
+            if (!revokeDetect) {
+                return refreshTokenRepository.deleteAllByUserId(userId);
+            }
+            return refreshTokenRepository.revokeAllActiveByUserId(userId, now);
+        }
+        if(!revokeDetect){
+            return refreshTokenRepository.deleteAllByUserIdExceptSessionId(userId, currentSessionId);
+        }
+        return refreshTokenRepository.revokeAllActiveByUserIdExceptSessionId(userId, currentSessionId, now);
+    }
+
     private void markCompromisedAndKillSessionOnce(UUID userId, String sessionId, Instant now, String reason) {
         int first = refreshTokenRepository.markSessionCompromisedOnce(userId, sessionId, now, reason);
 

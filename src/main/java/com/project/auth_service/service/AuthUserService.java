@@ -6,6 +6,7 @@ import com.project.auth_service.entity.UserRoleEntity;
 import com.project.auth_service.entity.UserRoleId;
 import com.project.auth_service.enums.Role;
 import com.project.auth_service.exceptions.EmailAlreadyExistsException;
+import com.project.auth_service.exceptions.UserNotFoundException;
 import com.project.auth_service.exceptions.UsernameAlreadyExistsException;
 import com.project.auth_service.repository.UserRoleRepository;
 import com.project.auth_service.service.dto.AuthUser;
@@ -34,6 +35,12 @@ public class AuthUserService {
     public Optional<AuthUser> findById(UUID userId) {
         return userRepository.findById(userId)
                 .map(this::toAuthUser);
+    }
+
+    @Transactional
+    public User findByIdForUpdate(UUID userId) {
+        return userRepository.findByIdForUpdate(userId)
+                .orElseThrow(UserNotFoundException::new);
     }
 
     @Transactional

@@ -65,6 +65,19 @@ class RateLimitFilterTests {
         assertEquals(429, thirdResponse.getStatus());
     }
 
+    @Test
+    void passwordChangeRateLimitUsesIp() throws Exception {
+        RateLimitFilter filter = filterWithLimits(5, 5, 5, 1);
+
+        MockHttpServletResponse firstResponse = new MockHttpServletResponse();
+        filter.doFilter(passwordChangeRequest(), firstResponse, new MockFilterChain());
+        assertEquals(200, firstResponse.getStatus());
+
+        MockHttpServletResponse secondResponse = new MockHttpServletResponse();
+        filter.doFilter(passwordChangeRequest(), secondResponse, new MockFilterChain());
+        assertEquals(429, secondResponse.getStatus());
+    }
+
     private RateLimitFilter filterWithLimits(long loginCapacity,
                                              long registerCapacity,
                                              long refreshCapacity,
@@ -78,6 +91,7 @@ class RateLimitFilterTests {
                 ),
                 new RateLimitProperties.Limit(registerCapacity, Duration.ofMinutes(1)),
                 new RateLimitProperties.Limit(refreshCapacity, Duration.ofMinutes(1)),
+                new RateLimitProperties.Limit(adminCapacity, Duration.ofMinutes(1)),
                 new RateLimitProperties.Limit(adminCapacity, Duration.ofMinutes(1)),
                 RateLimitProperties.Backend.IN_MEMORY,
                 "auth-service:rate-limit",
@@ -117,6 +131,12 @@ class RateLimitFilterTests {
         request.setRemoteAddr("203.0.113.10");
         request.setContentType(MediaType.APPLICATION_JSON_VALUE);
         request.setContent(("{\"username\":\"" + username + "\",\"password\":\"password\"}").getBytes());
+        return request;
+    }
+
+    private MockHttpServletRequest passwordChangeRequest() {
+        MockHttpServletRequest request = new MockHttpServletRequest("POST", "/api/v1/auth/password/change");
+        request.setRemoteAddr("203.0.113.10");
         return request;
     }
 }

@@ -13,7 +13,9 @@ import com.project.auth_service.exceptions.InvalidAuthClientOriginException;
 import com.project.auth_service.exceptions.InvalidRefreshTokenException;
 import com.project.auth_service.exceptions.InvalidUserBanException;
 import com.project.auth_service.exceptions.InvalidClientException;
+import com.project.auth_service.exceptions.InvalidCurrentPasswordException;
 import com.project.auth_service.exceptions.OriginNotAllowedException;
+import com.project.auth_service.exceptions.PasswordReuseNotAllowedException;
 import com.project.auth_service.exceptions.RefreshTokenAlreadyProcessedException;
 import com.project.auth_service.exceptions.RefreshTokenReuseDetectedException;
 import com.project.auth_service.exceptions.UserNotFoundException;
@@ -75,6 +77,16 @@ public class ExceptionAuthHandler {
     @ExceptionHandler(InvalidClientException.class)
     public ResponseEntity<ApiErrorResponse> handleInvalidClient(InvalidClientException ex) {
         return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(error("INVALID_CLIENT", ex));
+    }
+
+    @ExceptionHandler(InvalidCurrentPasswordException.class)
+    public ResponseEntity<ApiErrorResponse> handleInvalidCurrentPassword(InvalidCurrentPasswordException ex) {
+        return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(error("INVALID_CURRENT_PASSWORD", ex));
+    }
+
+    @ExceptionHandler(PasswordReuseNotAllowedException.class)
+    public ResponseEntity<ApiErrorResponse> handlePasswordReuseNotAllowed(PasswordReuseNotAllowedException ex) {
+        return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(error("PASSWORD_REUSE_NOT_ALLOWED", ex));
     }
 
     @ExceptionHandler(InvalidAuthClientOriginException.class)

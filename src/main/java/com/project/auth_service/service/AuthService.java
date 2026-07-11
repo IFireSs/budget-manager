@@ -3,8 +3,11 @@ package com.project.auth_service.service;
 import com.project.auth_service.api.dto.SessionResponse;
 import com.project.auth_service.entity.AuthClient;
 import com.project.auth_service.entity.RefreshToken;
+import com.project.auth_service.entity.User;
 import com.project.auth_service.enums.AuditEventType;
 import com.project.auth_service.exceptions.BadCredentialsException;
+import com.project.auth_service.exceptions.InvalidCurrentPasswordException;
+import com.project.auth_service.exceptions.PasswordReuseNotAllowedException;
 import com.project.auth_service.exceptions.RefreshTokenReuseDetectedException;
 import com.project.auth_service.exceptions.UserBannedException;
 import com.project.auth_service.service.dto.AuthUser;
@@ -70,6 +73,15 @@ public class AuthService {
                                  String origin,
                                  String sessionId,
                                  String refreshAttemptId) {
+    }
+
+    @Builder
+    public record ChangePasswordCommand(UUID userId,
+                                        String currentPassword,
+                                        String newPassword,
+                                        String sessionId,
+                                        String ip,
+                                        String userAgent) {
     }
 
     @Transactional
@@ -206,6 +218,53 @@ public class AuthService {
                 .actorUserId(userId)
                 .targetUserId(userId)
                 .sessionId(sessionId)
+                .build());
+    }
+
+    @Transactional
+    public void changePassword(ChangePasswordCommand command) {
+        User user = authUserService.findByIdForUpdate(command.userId());
+        if (!passwordEncoder.matches(command.currentPassword(), user.getPasswordHash())) {
+            recordPasswordChangeFailed(user, command, "INVALID_CURRENT_PASSWORD");
+            throw new InvalidCurrentPasswordException();
+        }
+        if (passwordEncoder.matches(command.newPassword(), user.getPasswordHash())) {
+            recordPasswordChangeFailed(user, command, "PASSWORD_REUSE_NOT_ALLOWED");
+            throw new PasswordReuseNotAllowedException();
+        }
+
+        user.setPasswordHash(passwordEncoder.encode(command.newPassword()));
+        int revokedOtherSessions = refreshTokenService.revokeOtherActiveSessionsByUserId(
+                user.getId(),
+                command.sessionId(),
+                Instant.now()
+        );
+        auditEventService.record(AuditEventType.PASSWORD_CHANGED, AuditEventService.AuditEventCommand.builder()
+                .actorUserId(user.getId())
+                .targetUserId(user.getId())
+                .username(user.getUsername())
+                .sessionId(command.sessionId())
+                .ip(command.ip())
+                .userAgent(command.userAgent())
+                .details(Map.of(
+                        "selfService", true,
+                        "otherSessionsRevoked", revokedOtherSessions
+                ))
+                .build());
+    }
+
+    private void recordPasswordChangeFailed(User user, ChangePasswordCommand command, String reason) {
+        auditEventService.recordImmediately(AuditEventType.PASSWORD_CHANGE_FAILED, AuditEventService.AuditEventCommand.builder()
+                .actorUserId(user.getId())
+                .targetUserId(user.getId())
+                .username(user.getUsername())
+                .sessionId(command.sessionId())
+                .ip(command.ip())
+                .userAgent(command.userAgent())
+                .details(Map.of(
+                        "selfService", true,
+                        "reason", reason
+                ))
                 .build());
     }
 

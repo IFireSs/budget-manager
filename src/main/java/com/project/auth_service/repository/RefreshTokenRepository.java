@@ -48,6 +48,19 @@ public interface RefreshTokenRepository extends JpaRepository<RefreshToken, Long
                                             @Param("sessionId") String sessionId,
                                             @Param("now") Instant now);
 
+    @Modifying(flushAutomatically = true, clearAutomatically = true)
+    @Query("""
+        update RefreshToken t
+        set t.revoked = true,
+            t.revokedAt = :now
+        where t.userId = :userId
+        and t.sessionId <> :sessionId
+        and t.revoked = false
+        """)
+    int revokeAllActiveByUserIdExceptSessionId(@Param("userId") UUID userId,
+                                               @Param("sessionId") String sessionId,
+                                               @Param("now") Instant now);
+
     @Lock(LockModeType.PESSIMISTIC_WRITE)
     @Query("select t from RefreshToken t where t.tokenHash = :hash")
     Optional<RefreshToken> findByTokenHashForUpdate(@Param("hash") String hash);
@@ -80,6 +93,10 @@ public interface RefreshTokenRepository extends JpaRepository<RefreshToken, Long
     @Modifying(flushAutomatically = true, clearAutomatically = true)
     @Query("delete from RefreshToken t where t.userId = :userId and t.sessionId = :sessionId")
     int deleteAllByUserIdAndSessionId(@Param("userId") UUID userId, @Param("sessionId") String sessionId);
+
+    @Modifying(flushAutomatically = true, clearAutomatically = true)
+    @Query("delete from RefreshToken t where t.userId = :userId and t.sessionId <> :sessionId")
+    int deleteAllByUserIdExceptSessionId(@Param("userId") UUID userId, @Param("sessionId") String sessionId);
 
     @Modifying(flushAutomatically = true, clearAutomatically = true)
     @Query("""
